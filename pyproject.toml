@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "classroom-downloader"
+version = "1.0.0"
+description = "Download lecture PDFs from Google Classroom via the terminal"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "google-auth",
+    "google-auth-oauthlib",
+    "google-api-python-client",
+]
+
+[project.scripts]
+classroom = "classroom.main:main"
+
+[tool.setuptools.package-data]
+classroom = ["credentials.json"]
