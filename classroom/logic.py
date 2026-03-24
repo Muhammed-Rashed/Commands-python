@@ -1,7 +1,7 @@
 import os
 import io
 import importlib.resources
-from display import G, B, Y, C, R, RD, DM, W
+from .display import G, B, Y, C, R, RD, DM, W
 
 SCOPES = [
     "https://www.googleapis.com/auth/classroom.courses.readonly",
@@ -12,7 +12,6 @@ SCOPES = [
 ]
 
 TOKEN_PATH = os.path.join(os.path.expanduser("~"), ".getlectures_token.json")
-
 
 def get_credentials():
     from google.oauth2.credentials import Credentials
@@ -42,7 +41,6 @@ def get_credentials():
             token.write(creds.to_json())
     return creds
 
-
 def list_courses(service):
     courses, page_token = [], None
     while True:
@@ -53,11 +51,9 @@ def list_courses(service):
             break
     return courses
 
-
 def list_topics(service, course_id):
     resp = service.courses().topics().list(courseId=course_id).execute()
     return resp.get("topic", [])
-
 
 def get_course_materials(service, course_id, topic_id):
     material, page_token = [], None
@@ -73,7 +69,6 @@ def get_course_materials(service, course_id, topic_id):
             break
     return material
 
-
 def extract_drive_files(material):
     file_ids = []
     for mat in material.get("materials", []):
@@ -82,11 +77,9 @@ def extract_drive_files(material):
             file_ids.append((df["id"], df.get("title", "unknown")))
     return file_ids
 
-
 def is_pdf(drive_service, file_id):
     meta = drive_service.files().get(fileId=file_id, fields="mimeType,name").execute()
     return meta.get("mimeType") == "application/pdf", meta.get("name", file_id)
-
 
 def download_pdf(drive_service, file_id, filename, dest_dir):
     from googleapiclient.http import MediaIoBaseDownload
@@ -98,7 +91,7 @@ def download_pdf(drive_service, file_id, filename, dest_dir):
     filepath = os.path.join(dest_dir, safe_name)
 
     if os.path.exists(filepath):
-        print(f"  {Y}⏭{R}  Already exists, skipping: {DM}{safe_name}{R}")
+        print(f"  {Y}[~]{R} Already exists, skipping: {DM}{safe_name}{R}")
         return 0
 
     request = drive_service.files().get_media(fileId=file_id)
@@ -109,5 +102,5 @@ def download_pdf(drive_service, file_id, filename, dest_dir):
         _, done = downloader.next_chunk()
     with open(filepath, "wb") as f:
         f.write(buf.getvalue())
-    print(f"  {G}↓{R}  {W}{safe_name}{R}")
+    print(f"  {G}[+]{R} {W}{safe_name}{R}")
     return 1

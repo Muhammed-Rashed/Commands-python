@@ -1,10 +1,8 @@
 import os
 from googleapiclient.discovery import build
-
-import display
-import logic
-from utils import prompt, pick_from_list, pick_materials, pick_files_from_material
-
+from . import display
+from . import logic
+from .utils import prompt, pick_from_list, pick_materials, pick_files_from_material
 
 def main():
     display.MainMenu()
@@ -69,7 +67,6 @@ def main():
             display.show_warning(f"Skipping non-PDF: {real_name}")
 
     display.show_success(f"Done! Downloaded {pdf_count} new PDF(s) to:\n     {download_dir}\n")
-
 
 if __name__ == "__main__":
     main()
