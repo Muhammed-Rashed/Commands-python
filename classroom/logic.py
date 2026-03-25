@@ -11,6 +11,17 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive.readonly",
 ]
 
+DOWNLOADABLE_TYPES = {
+    "application/pdf":   ".pdf",
+    "video/mp4":         ".mp4",
+    "video/quicktime":   ".mov",
+    "video/x-matroska":  ".mkv",
+    "video/webm":        ".webm",
+    "application/zip":   ".zip",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",
+}
+
 TOKEN_PATH = os.path.join(os.path.expanduser("~"), ".getlectures_token.json")
 
 def get_credentials():
@@ -77,25 +88,27 @@ def extract_drive_files(material):
             file_ids.append((df["id"], df.get("title", "unknown")))
     return file_ids
 
-def is_pdf(drive_service, file_id):
+def is_downloadable(drive_service, file_id):
     meta = drive_service.files().get(fileId=file_id, fields="mimeType,name").execute()
-    return meta.get("mimeType") == "application/pdf", meta.get("name", file_id)
+    mime = meta.get("mimeType", "")
+    name = meta.get("name", file_id)
+    ext  = DOWNLOADABLE_TYPES.get(mime)
+    return ext is not None, name, mime
 
-def download_pdf(drive_service, file_id, filename, dest_dir):
+
+def download_file(drive_service, file_id, filename, dest_dir):
     from googleapiclient.http import MediaIoBaseDownload
 
     os.makedirs(dest_dir, exist_ok=True)
     safe_name = "".join(c if c.isalnum() or c in " ._-()" else "_" for c in filename)
-    if not safe_name.endswith(".pdf"):
-        safe_name += ".pdf"
-    filepath = os.path.join(dest_dir, safe_name)
+    filepath  = os.path.join(dest_dir, safe_name)
 
     if os.path.exists(filepath):
         print(f"  {Y}[~]{R} Already exists, skipping: {DM}{safe_name}{R}")
         return 0
 
     request = drive_service.files().get_media(fileId=file_id)
-    buf = io.BytesIO()
+    buf      = io.BytesIO()
     downloader = MediaIoBaseDownload(buf, request)
     done = False
     while not done:

@@ -1,16 +1,11 @@
+import argparse
 import os
 from googleapiclient.discovery import build
 from . import display
 from . import logic
 from .utils import prompt, pick_from_list, pick_materials, pick_files_from_material
 
-def main():
-    display.MainMenu()
-    choice = input("  Your choice: ").strip()
-
-    if choice == "0":
-        return
-
+def cmd_get(args):
     display.show_status("Authenticating with Google...")
     creds     = logic.get_credentials()
     classroom = build("classroom", "v1", credentials=creds)
@@ -58,15 +53,71 @@ def main():
         display.show_error("Cancelled.")
         return
 
-    pdf_count = 0
+    count = 0
     for file_id, name in files_to_download:
-        ok, real_name = logic.is_pdf(drive, file_id)
+        ok, real_name, mime = logic.is_downloadable(drive, file_id)
         if ok:
-            pdf_count += logic.download_pdf(drive, file_id, real_name, download_dir)
+            count += logic.download_file(drive, file_id, real_name, download_dir)
         else:
-            display.show_warning(f"Skipping non-PDF: {real_name}")
+            display.show_warning(f"Skipping unsupported file type: {real_name} ({mime})")
 
-    display.show_success(f"Done! Downloaded {pdf_count} new PDF(s) to:\n     {download_dir}\n")
+    display.show_success(f"Done! Downloaded {count} file(s) to:\n     {download_dir}\n")
+
+
+# -- Add new commands here --
+
+# def cmd_drive(args):
+#     pass
+
+# def cmd_list(args):
+#     pass
+
+
+def build_parser():
+    parser = argparse.ArgumentParser(
+        prog="classroom",
+        description="Google Classroom PDF Downloader",
+    )
+
+    sub = parser.add_subparsers(dest="command")
+
+    # -- classroom get --
+    get_parser = sub.add_parser("get", help="Download files from Classroom")
+    get_parser.add_argument(
+        "filter",
+        nargs="?",
+        choices=["pdfs", "all"],
+        default="pdfs",
+        help="What to download (default: pdfs)",
+    )
+
+    # -- Add new subparsers here --
+    # drive_parser = sub.add_parser("drive", help="Browse Google Drive")
+    # drive_parser.add_argument("action", choices=["list", "get"])
+    
+
+    return parser
+
+
+def main():
+    parser = build_parser()
+    args   = parser.parse_args()
+
+    if args.command == "get":
+        cmd_get(args)
+
+    # -- Add new command handlers here --
+    # elif args.command == "drive":
+    #     cmd_drive(args)
+
+    else:
+        display.MainMenu()
+        choice = input("  Your choice: ").strip()
+        if choice == "1":
+            cmd_get(args)
+        elif choice == "0":
+            return
+
 
 if __name__ == "__main__":
     main()
