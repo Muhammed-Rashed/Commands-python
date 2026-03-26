@@ -1,18 +1,12 @@
-R  = "\033[0m"
-G  = "\033[38;5;114m"
-B  = "\033[38;5;111m"
-Y  = "\033[38;5;179m"
-C  = "\033[38;5;117m"
-P  = "\033[38;5;141m"
-RD = "\033[38;5;203m"
-DM = "\033[38;5;241m"
-W  = "\033[97m"
+from .logic import is_authenticated
+from .colors import G, B, Y, C, R, RD, DM, W, P
 
 def MainMenu(user_email=None, save_path=None, authenticated=False):
-    status = f"{G}[ok]{R}" if authenticated else f"{RD}[x] Not signed in{R}"
+    authenticated = is_authenticated()
+    status = f"{G}[authenticated]{R}" if authenticated else f"{RD}[x] Not signed in{R}"
     print(f"""
 {G}+------------------------------------------+{R}
-{G}|{R}  {B}Google Classroom PDF Downloader{R}  {P}v1.1{R}  {G}|{R}
+{G}|{R}  {B}Google Classroom PDF Downloader{R}  {P}v1.2{R}  {G}|{R}
 {G}+------------------------------------------+{R}
 
 {C}  User   :{R} {W}{user_email or 'Not signed in'}{R}
@@ -20,7 +14,7 @@ def MainMenu(user_email=None, save_path=None, authenticated=False):
 {C}  Status :{R} {status}
 
 {DM}  ------------------------------------------{R}
-  {Y}[1]{R} Download PDFs   {Y}[2]{R} Pick Course
+  {Y}[1]{R} Download   {Y}[2]{R} Pick Course
   {Y}[3]{R} Settings        {RD}[0]{R} Exit
 {DM}  ------------------------------------------{R}
 """)

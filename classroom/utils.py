@@ -103,3 +103,31 @@ def pick_materials(material):
                     return selected
             except ValueError:
                 print(f"  {RD}[!]{R} Please enter 'A' for all, or numbers like 1,2,3")
+
+def pick_announcement_files(announcement_files):
+    print(f"\n  {DM}Announcement files ({len(announcement_files)} found):{R}")
+    for i, (file_id, name) in enumerate(announcement_files, 1):
+        print(f"    {Y}{i}){R} {W}{name}{R}")
+
+    print(f"\n  {G}A){R} Download ALL")
+    print(f"  {RD}S){R} Skip")
+    print(f"  {DM}Or enter numbers separated by commas (e.g. 1,3){R}")
+
+    while True:
+        choice = input(f"\n  {C}>{R} Your choice: ").strip().lower()
+        if choice == "a":
+            return announcement_files
+        elif choice == "s":
+            print(f"  {Y}[~]{R} Skipped.")
+            return []
+        else:
+            try:
+                indices = [int(x.strip()) - 1 for x in choice.split(",")]
+                for idx in indices:
+                    if idx < 0 or idx >= len(announcement_files):
+                        print(f"  {RD}[!]{R} Number {idx + 1} is out of range, try again.")
+                        break
+                else:
+                    return [announcement_files[i] for i in indices]
+            except ValueError:
+                print(f"  {RD}[!]{R} Please enter 'A' for all, 'S' to skip, or numbers like 1,2,3")

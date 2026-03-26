@@ -1,7 +1,7 @@
 import os
 import io
 import importlib.resources
-from .display import G, B, Y, C, R, RD, DM, W
+from .colors import G, B, Y, C, R, RD, DM, W
 
 SCOPES = [
     "https://www.googleapis.com/auth/classroom.courses.readonly",
@@ -9,6 +9,7 @@ SCOPES = [
     "https://www.googleapis.com/auth/classroom.student-submissions.me.readonly",
     "https://www.googleapis.com/auth/classroom.topics.readonly",
     "https://www.googleapis.com/auth/drive.readonly",
+    "https://www.googleapis.com/auth/classroom.announcements.readonly",
 ]
 
 DOWNLOADABLE_TYPES = {
@@ -24,6 +25,13 @@ DOWNLOADABLE_TYPES = {
 
 TOKEN_PATH = os.path.join(os.path.expanduser("~"), ".getlectures_token.json")
 
+def is_authenticated():
+    from google.oauth2.credentials import Credentials
+    if not os.path.exists(TOKEN_PATH):
+        return False
+    creds = Credentials.from_authorized_user_file(TOKEN_PATH, SCOPES)
+    return creds.valid or (creds.expired and creds.refresh_token is not None)
+
 def get_credentials():
     from google.oauth2.credentials import Credentials
     from google_auth_oauthlib.flow import InstalledAppFlow
@@ -32,6 +40,7 @@ def get_credentials():
     creds = None
     if os.path.exists(TOKEN_PATH):
         creds = Credentials.from_authorized_user_file(TOKEN_PATH, SCOPES)
+        
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
@@ -51,6 +60,14 @@ def get_credentials():
         with open(TOKEN_PATH, "w") as token:
             token.write(creds.to_json())
     return creds
+
+def logout():
+    if os.path.exists(TOKEN_PATH):
+        os.remove(TOKEN_PATH)
+        print(f"{G}[Deleted local credentials file: {TOKEN_PATH}]{R}")
+    else:
+        print(f"{RD}[No local credentials file found ({TOKEN_PATH}).]{R}")
+
 
 def list_courses(service):
     courses, page_token = [], None
@@ -80,6 +97,22 @@ def get_course_materials(service, course_id, topic_id):
             break
     return material
 
+def get_announcement_materials(service, course_id):
+    materials, page_token = [], None
+    while True:
+        resp = service.courses().announcements().list(
+            courseId=course_id, pageToken=page_token
+        ).execute()
+        for announcement in resp.get("announcements", []):
+            for mat in announcement.get("materials", []):
+                df = mat.get("driveFile", {}).get("driveFile", {})
+                if df.get("id"):
+                    materials.append((df["id"], df.get("title", "unknown")))
+        page_token = resp.get("nextPageToken")
+        if not page_token:
+            break
+    return materials
+
 def extract_drive_files(material):
     file_ids = []
     for mat in material.get("materials", []):
@@ -108,7 +141,7 @@ def download_file(drive_service, file_id, filename, dest_dir):
         return 0
 
     request = drive_service.files().get_media(fileId=file_id)
-    buf      = io.BytesIO()
+    buf = io.BytesIO()
     downloader = MediaIoBaseDownload(buf, request)
     done = False
     while not done:

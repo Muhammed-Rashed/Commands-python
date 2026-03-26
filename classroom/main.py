@@ -2,8 +2,10 @@ import argparse
 import os
 from googleapiclient.discovery import build
 from . import display
+from .colors import G, B, Y, C, R, RD, DM, W
 from . import logic
-from .utils import prompt, pick_from_list, pick_materials, pick_files_from_material
+from .utils import prompt, pick_from_list, pick_materials, pick_files_from_material, pick_announcement_files
+from .settings import settings
 
 def cmd_get(args):
     display.show_status("Authenticating with Google...")
@@ -91,11 +93,6 @@ def build_parser():
         help="What to download (default: pdfs)",
     )
 
-    # -- Add new subparsers here --
-    # drive_parser = sub.add_parser("drive", help="Browse Google Drive")
-    # drive_parser.add_argument("action", choices=["list", "get"])
-    
-
     return parser
 
 def authenticate():
@@ -120,7 +117,7 @@ def main():
             break
 
         elif choice == "3":
-            classroom, drive = authenticate()
+            settings()
             continue
 
         elif choice != "1":
@@ -140,23 +137,37 @@ def main():
 
         display.show_status("Fetching topics...")
         topics = logic.list_topics(classroom, course["id"])
-        if not topics:
-            display.show_error("No topics found in this course.")
-            continue
-
-        topic = pick_from_list("topic", topics, "name")
-
-        display.show_status("Fetching materials...")
-        materials = logic.get_course_materials(classroom, course["id"], topic["topicId"])
-        if not materials:
-            display.show_error("No materials found in this topic.")
-            continue
-
-        selected_materials = pick_materials(materials)
 
         files_to_download = []
-        for mat in selected_materials:
-            files_to_download.extend(pick_files_from_material(mat))
+
+        if not topics:
+            display.show_warning("No topics found in this course.")
+            display.show_status("Checking for announcement materials...")
+            announcement_files = logic.get_announcement_materials(classroom, course["id"])
+            if not announcement_files:
+                display.show_error("No materials found at all in this course.")
+                continue
+            selected = pick_announcement_files(announcement_files)
+            files_to_download.extend(selected)
+
+        else:
+            topic = pick_from_list("topic", topics, "name")
+
+            display.show_status("Fetching materials...")
+            materials = logic.get_course_materials(classroom, course["id"], topic["topicId"])
+            if not materials:
+                display.show_error("No materials found in this topic.")
+                continue
+
+            selected_materials = pick_materials(materials)
+            for mat in selected_materials:
+                files_to_download.extend(pick_files_from_material(mat))
+
+            display.show_status("Checking for announcement materials...")
+            announcement_files = logic.get_announcement_materials(classroom, course["id"])
+            if announcement_files:
+                selected = pick_announcement_files(announcement_files)
+                files_to_download.extend(selected)
 
         if not files_to_download:
             display.show_error("No files selected.")
@@ -166,23 +177,21 @@ def main():
         download_dir = prompt("Download folder path", default=default_dir)
         download_dir = os.path.expanduser(download_dir)
 
-        display.show_summary(course, topic, selected_materials, download_dir)
-
         confirm = input("  Proceed? (Y/n): ").strip().lower()
         if confirm == "n":
             display.show_error("Cancelled.")
             continue
 
-        pdf_count = 0
+        count = 0
         for file_id, name in files_to_download:
-            ok, real_name = logic.is_pdf(drive, file_id)
+            ok, real_name, mime = logic.is_downloadable(drive, file_id)
             if ok:
-                pdf_count += logic.download_pdf(drive, file_id, real_name, download_dir)
+                count += logic.download_file(drive, file_id, real_name, download_dir)
             else:
-                display.show_warning(f"Skipping non-PDF: {real_name}")
+                display.show_warning(f"Skipping unsupported type: {real_name} ({mime})")
 
         display.show_success(
-            f"Done! Downloaded {pdf_count} PDF(s) to:\n     {download_dir}\n"
+            f"Done! Downloaded {count} file(s) to:\n     {download_dir}\n"
         )
 
 if __name__ == "__main__":
